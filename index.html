@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Трекер доходов и расходов</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,680&family=Outfit:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/vendor/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <p class="eyebrow">Личные финансы</p>
+          <h1>Трекер доходов и расходов</h1>
+        </div>
+        <div class="header-tools">
+          <button type="button" class="btn btn-ghost" id="export-data">Скачать копию</button>
+          <label class="btn btn-ghost file-btn">
+            Загрузить копию
+            <input id="import-data" type="file" accept="application/json,.json" hidden />
+          </label>
+        </div>
+        <nav class="tabs" role="tablist" aria-label="Разделы">
+          <button type="button" class="tab is-active" role="tab" aria-selected="true" data-view="dashboard">
+            Дашборд
+          </button>
+          <button type="button" class="tab" role="tab" aria-selected="false" data-view="transactions">
+            Операции
+          </button>
+          <button type="button" class="tab" role="tab" aria-selected="false" data-view="categories">
+            Категории
+          </button>
+        </nav>
+      </header>
+
+      <main>
+        <section id="view-dashboard" data-view-panel>
+          <div class="toolbar">
+            <label class="field field-inline">
+              <span>Период</span>
+              <select id="period">
+                <option value="month">Текущий месяц</option>
+                <option value="quarter">Последние 3 месяца</option>
+                <option value="year">Этот год</option>
+                <option value="all">Всё время</option>
+                <option value="custom">Свои даты</option>
+              </select>
+            </label>
+            <label class="field field-inline" id="range-from-field" hidden>
+              <span>С</span>
+              <input id="range-from" type="date" />
+            </label>
+            <label class="field field-inline" id="range-to-field" hidden>
+              <span>По</span>
+              <input id="range-to" type="date" />
+            </label>
+          </div>
+
+          <div class="cards">
+            <article class="card card-income">
+              <h2>Доход</h2>
+              <p id="total-income" class="amount">0 сум</p>
+              <p id="income-delta" class="delta"></p>
+            </article>
+            <article class="card card-expense">
+              <h2>Расход</h2>
+              <p id="total-expense" class="amount">0 сум</p>
+              <p id="expense-delta" class="delta"></p>
+            </article>
+            <article class="card card-balance">
+              <h2>Баланс</h2>
+              <p id="total-balance" class="amount">0 сум</p>
+              <p id="balance-delta" class="delta"></p>
+            </article>
+          </div>
+
+          <div class="insights">
+            <article class="panel insight">
+              <h2>Операций</h2>
+              <p id="stat-count" class="insight-value">0</p>
+            </article>
+            <article class="panel insight">
+              <h2>Средний расход</h2>
+              <p id="stat-avg" class="insight-value">0 сум</p>
+            </article>
+            <article class="panel insight">
+              <h2>Главная трата</h2>
+              <p id="stat-top" class="insight-value">—</p>
+            </article>
+          </div>
+
+          <form id="budget-form" class="panel budget">
+            <div>
+              <h2>Лимит расходов</h2>
+              <p class="hint">Считается по расходам текущего месяца</p>
+            </div>
+            <label class="field field-inline">
+              <span>Сумма, сум</span>
+              <input id="budget-input" inputmode="numeric" placeholder="Не задан" />
+            </label>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <div class="meter" aria-hidden="true"><span id="budget-bar"></span></div>
+            <p id="budget-label" class="hint">Лимит не задан</p>
+          </form>
+
+          <div class="chart-grid">
+            <article class="panel chart-wide">
+              <h2>Доходы и расходы по месяцам</h2>
+              <div class="chart-box chart-box-tall">
+                <canvas id="chart-months"></canvas>
+              </div>
+              <p class="empty" id="empty-months" hidden>Нет операций за выбранный период</p>
+            </article>
+            <article class="panel">
+              <h2>Расходы по категориям</h2>
+              <div class="chart-box">
+                <canvas id="chart-expense"></canvas>
+              </div>
+              <p class="empty" id="empty-expense" hidden>Нет расходов за период</p>
+            </article>
+            <article class="panel">
+              <h2>Доходы по категориям</h2>
+              <div class="chart-box">
+                <canvas id="chart-income"></canvas>
+              </div>
+              <p class="empty" id="empty-income" hidden>Нет доходов за период</p>
+            </article>
+          </div>
+
+          <article class="panel">
+            <h2>Последние операции</h2>
+            <ul id="recent-list" class="rows"></ul>
+            <p class="empty" id="empty-recent" hidden>Операций пока нет</p>
+          </article>
+        </section>
+
+        <section id="view-transactions" data-view-panel hidden>
+          <div class="split">
+            <form id="tx-form" class="panel form">
+              <h2 id="tx-form-title">Новая операция</h2>
+              <label class="field">
+                <span>Тип</span>
+                <select name="type" required>
+                  <option value="income">Доход</option>
+                  <option value="expense">Расход</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Сумма, сум</span>
+                <input name="amount" inputmode="numeric" autocomplete="off" required placeholder="150000" />
+              </label>
+              <label class="field">
+                <span>Категория</span>
+                <select name="categoryId" required></select>
+              </label>
+              <label class="field">
+                <span>Дата</span>
+                <input name="date" type="date" required />
+              </label>
+              <label class="field">
+                <span>Комментарий</span>
+                <input name="note" maxlength="120" autocomplete="off" placeholder="Необязательно" />
+              </label>
+              <p class="form-error" id="tx-error" role="alert" hidden></p>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <button type="button" class="btn btn-ghost" id="tx-cancel" hidden>Отмена</button>
+              </div>
+            </form>
+
+            <div class="panel">
+              <div class="filters">
+                <label class="field field-inline">
+                  <span>Поиск</span>
+                  <input id="tx-search" type="search" placeholder="Категория или комментарий" />
+                </label>
+                <label class="field field-inline">
+                  <span>Сортировка</span>
+                  <select id="tx-sort">
+                    <option value="date-desc">Сначала новые</option>
+                    <option value="date-asc">Сначала старые</option>
+                    <option value="amount-desc">Сумма по убыванию</option>
+                    <option value="amount-asc">Сумма по возрастанию</option>
+                  </select>
+                </label>
+                <label class="field field-inline">
+                  <span>Тип</span>
+                  <select id="tx-filter-type">
+                    <option value="all">Все</option>
+                    <option value="income">Доходы</option>
+                    <option value="expense">Расходы</option>
+                  </select>
+                </label>
+                <label class="field field-inline">
+                  <span>Категория</span>
+                  <select id="tx-filter-category">
+                    <option value="all">Все</option>
+                  </select>
+                </label>
+              </div>
+              <p id="tx-count" class="hint">Показано 0</p>
+              <ul id="tx-list" class="rows"></ul>
+              <p class="empty" id="tx-empty" hidden>Операций нет</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-categories" data-view-panel hidden>
+          <div class="split">
+            <form id="cat-form" class="panel form">
+              <h2 id="cat-form-title">Новая категория</h2>
+              <label class="field">
+                <span>Название</span>
+                <input name="name" maxlength="40" autocomplete="off" required placeholder="Например, кафе" />
+              </label>
+              <label class="field">
+                <span>Тип</span>
+                <select name="type" required>
+                  <option value="income">Доход</option>
+                  <option value="expense">Расход</option>
+                </select>
+              </label>
+              <p class="form-error" id="cat-error" role="alert" hidden></p>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <button type="button" class="btn btn-ghost" id="cat-cancel" hidden>Отмена</button>
+              </div>
+            </form>
+
+            <div class="panel">
+              <h2>Список категорий</h2>
+              <p class="form-error" id="cat-list-error" role="alert" hidden></p>
+              <ul id="cat-list" class="rows"></ul>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <p id="toast" class="toast" role="status" hidden></p>
+    <script src="js/format.js?v=2"></script>
+    <script src="js/storage.js?v=2"></script>
+    <script src="js/categories.js?v=2"></script>
+    <script src="js/transactions.js?v=2"></script>
+    <script src="js/dashboard.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
+  </body>
+</html>
